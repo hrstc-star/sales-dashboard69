@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ยอดขายสาขา</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light only">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ยอดขายสาขา">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+/* ===== ชุดสีเดียว ออกแบบสำหรับผู้บริหารสูงวัย =====
+   อิงงานวิจัย: ผู้สูงวัยควรได้ความคมชัดอย่างน้อย 7:1 (สูงกว่าเกณฑ์ทั่วไปที่ 4.5:1)
+   ใช้พื้นขาวตัวอักษรดำ ไม่ใช้เทาบนเทา และไม่มีโหมดมืด เพราะพื้นสว่างอ่านง่ายกว่าสำหรับสายตาสูงวัย
+   สี: เลี่ยงโทนน้ำเงิน-เขียว เพราะราว 40% ของผู้สูงวัยแยกสีแกนน้ำเงิน-เหลืองได้ยาก
+        ใช้เขียวเข้ม/ส้มแดงเข้มที่คมชัดสูง และมีคำกำกับทิศทางเสมอ ไม่ให้สีสื่อความหมายลำพัง */
+:root{
+  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F2F2F0;
+  --line:#B8B8B4; --line-soft:#D8D8D4;
+  --ink:#111111; --ink-dim:#3F4650; --ink-faint:#5A6069;
+  --accent:#7A4E16; --accent-soft:#7A4E1620;
+  --up:#0B5C48; --down:#A8330A; --grid:#D8D8D4;
+  --mono:'SF Mono',ui-monospace,Consolas,monospace;
+  --sans:'Noto Sans Thai','Sarabun','Leelawadee UI','Thonburi',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:18px;line-height:1.6;
+  padding:max(14px,env(safe-area-inset-top)) 14px calc(30px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased}
+.wrap{max-width:900px;margin:0 auto}
+
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.top h1{margin:0;font-size:22px;font-weight:600}
+.top .sub{font-size:14px;color:var(--ink-dim);margin-top:3px}
+.top .tot{font-family:var(--mono);font-size:30px;font-weight:600;text-align:right;line-height:1.2}
+.top .totc{font-size:13px;color:var(--ink-dim);text-align:right}
+
+.card{background:var(--surface);border:2px solid var(--line);border-radius:12px;margin-bottom:12px}
+.pad{padding:13px 14px}
+h2{margin:0 0 10px;font-size:17px;font-weight:600}
+.h2row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.h2row h2{margin:0}
+
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+.kpi{background:var(--surface);border:2px solid var(--line);border-radius:12px;padding:15px 16px}
+.kpi .l{font-size:14px;color:var(--ink-dim);line-height:1.4;margin-bottom:7px}
+.kpi .v{font-family:var(--mono);font-size:26px;font-weight:600}
+.kpi .d{font-size:13px;color:var(--ink-dim);margin-top:4px}
+
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:none;border:0;border-right:1px solid var(--line);color:var(--ink-dim);
+  font-family:var(--sans);font-size:16px;padding:0 20px;min-height:52px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+select,input[type=search]{background:var(--surface-2);border:2px solid var(--line);border-radius:8px;
+  color:var(--ink);font-family:var(--sans);font-size:17px;padding:11px 10px;min-height:52px;outline:none;width:100%;-webkit-appearance:none}
+select:focus,input:focus{border-color:var(--accent)}
+
+.chart-host{position:relative;width:100%}
+.chart-host svg{display:block;width:100%;height:auto;overflow:visible}
+.tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .1s;background:var(--surface);
+  border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:12px;
+  box-shadow:0 4px 14px rgba(0,0,0,.16);z-index:5;white-space:nowrap}
+.tip .t{color:var(--ink-faint);font-size:10px;margin-bottom:2px}
+.tip .v{font-family:var(--mono);font-weight:600;font-size:13px}
+.cap{font-size:14px;color:var(--ink-dim);line-height:1.65;margin:8px 0 0}
+
+.rw{display:flex;align-items:center;gap:11px;padding:13px 0;border-top:1px solid var(--line-soft)}
+.rw:first-of-type{border-top:0}
+.rw .no{font-family:var(--mono);font-size:14px;color:var(--ink-dim);width:24px;flex:none}
+.rw .mid{flex:1;min-width:0}
+.rw .nm{font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw .rg{font-size:13px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.trk{position:relative;height:10px;background:var(--line-soft);border-radius:4px;margin-top:7px}
+.trk i{position:absolute;left:0;top:0;height:100%;border-radius:3px}
+/* ขีดอ้างอิง = ค่ากลางของภาค (แนวคิด bullet graph ของ Stephen Few) */
+.trk u{position:absolute;top:-3px;width:3px;height:16px;background:#111;opacity:.85;border-radius:1px}
+.spark{display:block;margin-top:7px}
+.headline{background:var(--surface);border:2px solid var(--line);border-left:6px solid var(--accent);
+  border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.headline .k{font-size:13px;color:var(--accent);font-family:var(--mono);letter-spacing:.06em;margin-bottom:5px}
+.headline .m{font-size:19px;line-height:1.65;color:var(--ink)}
+.headline .m b{font-weight:600}
+.lgd{font-size:14px;color:var(--ink-dim);margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.lgd s{display:inline-block;width:2px;height:11px;background:var(--ink-dim);opacity:.75;vertical-align:-2px;margin-right:4px;text-decoration:none}
+.rw .va{font-family:var(--mono);font-size:17px;text-align:right;flex:none;min-width:76px}
+.rw .pc{font-family:var(--mono);font-size:16px;font-weight:600;text-align:right;flex:none;min-width:62px}
+
+.ins{display:flex;gap:9px;padding:11px 0;border-top:1px solid var(--line-soft)}
+.ins:first-of-type{border-top:0;padding-top:0}
+.ins .tag{font-family:var(--mono);font-size:12px;padding:4px 8px;border-radius:4px;height:fit-content;
+  white-space:nowrap;margin-top:2px;background:var(--accent-soft);color:var(--accent)}
+.ins .tag.r{background:#C2410C16;color:var(--down)}
+.ins .tag.g{background:#0F766E16;color:var(--up)}
+.ins .tx{font-size:16px;line-height:1.75;color:#222}
+.ins .tx b{color:var(--ink);font-weight:600}
+
+.state{padding:44px 18px;text-align:center;color:var(--ink-dim);font-size:13.5px;line-height:1.7}
+.state b{color:var(--ink)}
+.state code{background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:2px 6px;font-family:var(--mono);font-size:12px}
+.spin{width:26px;height:26px;border:2.5px solid var(--line);border-top-color:var(--accent);
+  border-radius:50%;margin:0 auto 14px;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hide{display:none!important}
+footer{text-align:center;font-size:10.5px;color:var(--ink-faint);margin-top:16px;line-height:1.6}
+
+@media(min-width:720px){.kpis{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loading" class="state"><div class="spin"></div>กำลังโหลดข้อมูล…</div>
+  <div id="error" class="state hide"></div>
+
+  <div id="app" class="hide">
+    <div class="top">
+      <div><h1>ยอดขายสาขา</h1><div class="sub" id="sub"></div></div>
+      <div><div class="tot" id="tot"></div><div class="totc" id="totc"></div></div>
+    </div>
+
+    <div class="headline" id="headline"></div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <!-- trend -->
+    <div class="card pad hide" id="trendCard">
+      <div class="h2row"><h2>แนวโน้มยอดขายรวม</h2>
+        <div class="seg" id="segTF">
+          <button data-s="1" class="on">1 วัน</button><button data-s="3">3 วัน</button><button data-s="7">1 สัปดาห์</button>
+        </div>
+      </div>
+      <div class="chart-host" id="hostAll"><div class="tip" id="tipAll"></div></div>
+      <p class="cap" id="capAll"></p>
+    </div>
+
+    <!-- period picker -->
+    <div class="card pad" id="pickCard">
+      <div class="h2row"><h2>เลือกวันที่ต้องการดูรายละเอียด</h2></div>
+      <select id="selDate"></select>
+    </div>
+
+    <!-- rankings -->
+    <div class="card pad">
+      <div class="h2row"><h2>อันดับสาขา</h2>
+        <div class="seg" id="segRank">
+          <button data-r="top" class="on">ดีที่สุด</button><button data-r="bot">แย่ที่สุด</button>
+        </div>
+      </div>
+      <div id="rank"></div>
+      <div class="lgd">
+        <span><s></s>ขีดตั้ง = ค่ากลางของภาค</span>
+        <span>แถบยาว = ยอดขายวันนี้</span>
+        <span>ตัวเลขขวา = กี่เท่าของค่ากลาง</span>
+      </div>
+    </div>
+
+    <!-- region -->
+    <div class="card pad"><h2>แยกตามภาค</h2><div id="regions"></div>
+      <p class="cap">แท่ง = ยอดรวมของภาค · ตัวเลขขวา = ยอดเฉลี่ยต่อสาขา (เทียบข้ามภาคได้อย่างเป็นธรรม)</p></div>
+
+    <!-- insights -->
+    <div class="card pad"><h2>ข้อสังเกตจากข้อมูล</h2><div id="ins"></div></div>
+
+    <footer id="foot"></footer>
+  </div>
+</div>
+
+<script id="inline-data" type="text/plain"></script>
+<script>
+/* ============ CSV loading ============ */
+const CSV_URL = 'data/sales.csv';
+
+// ถ้าไฟล์นี้มีข้อมูลฝังไว้ (ไฟล์เดโม) ให้ใช้ของที่ฝังเลย ไม่ต้องโหลดจากเซิร์ฟเวอร์
+function inlineCSV(){
+  const el=document.getElementById('inline-data');
+  const t=el&&el.textContent?el.textContent.trim():'';
+  return t.length>40 ? t : null;
+}
+
+function parseCSV(text){
+  text = text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
+  const rows=[]; let f='',row=[],q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'){ row.push(f); f=''; if(row.some(x=>x.trim()!=='')) rows.push(row); row=[]; }
+    else f+=c;
+  }
+  row.push(f); if(row.some(x=>x.trim()!=='')) rows.push(row);
+  return rows;
+}
+const ALIAS={
+  date:['วันที่','date','วัน'], region:['ภาค','region'], sup:['ผู้ดูแล','supervisor','ทีม'],
+  code:['รหัสร้าน','code','รหัส'], name:['ชื่อสาขา','สาขา','name','branch'],
+  sales:['ยอดขาย','sales','amount','ยอด','มูลค่า']
+};
+function mapHeader(hdr){
+  const idx={}; const low=hdr.map(h=>h.trim().toLowerCase());
+  for(const key in ALIAS){
+    idx[key]=low.findIndex(h=>ALIAS[key].some(a=>h===a.toLowerCase()));
+    if(idx[key]<0) idx[key]=low.findIndex(h=>ALIAS[key].some(a=>h.includes(a.toLowerCase())));
+  }
+  return idx;
+}
+function num(s){ const v=parseFloat(String(s).replace(/[, ฿]/g,'')); return isFinite(v)?v:null; }
+
+/* ============ helpers ============ */
+// ข้อความทุกตัวที่มาจากไฟล์ CSV ต้องผ่านตัวนี้ก่อนใส่ใน innerHTML
+// ไม่งั้นชื่อสาขาที่มี < > & จะทำให้หน้าเพี้ยนหรือถูกตีความเป็นแท็ก
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf=n=>Math.round(n).toLocaleString('th-TH');
+const kmb=n=>{const s=n<0?'-':'';n=Math.abs(n);
+  if(n>=1e6)return s+(n/1e6).toFixed(n>=1e7?1:2)+'M';
+  if(n>=1e3)return s+Math.round(n/1e3)+'K';return s+nf(n);};
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const TH_MON=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const TH_DOW=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+function fmtDate(iso,short){
+  const d=new Date(iso+'T00:00:00');
+  if(isNaN(d)) return iso;
+  return short? `${d.getDate()} ${TH_MON[d.getMonth()]}` : `${d.getDate()} ${TH_MON[d.getMonth()]} ${d.getFullYear()+543}`;
+}
+function median(a){const b=[...a].sort((x,y)=>x-y);const m=b.length>>1;
+  return b.length%2?b[m]:(b[m-1]+b[m])/2;}
+
+/* ============ SVG chart ============ */
+function drawLine(host,tip,items,opt){
+  opt=opt||{};
+  const W=Math.max(300,host.clientWidth||340), narrow=W<520;
+  const EZ=true;  // ใช้ขนาดตัวอักษร/เส้นแบบอ่านง่ายเสมอ
+  const H=(narrow?185:250)*(EZ?1.18:1);
+  const P={t:12,r:10,b:26,l:narrow?42:54}, iw=W-P.l-P.r, ih=H-P.t-P.b;
+  const vals=items.map(d=>d.v).filter(v=>v!==null);
+  const top=(vals.length?Math.max(...vals):1)*1.14||1;
+  const n=items.length;
+  const X=i=>P.l+(n===1?iw/2:(i/(n-1))*iw), Y=v=>P.t+ih-(v/top)*ih;
+  const A=cssv('--accent')||'#9A6B2F', G=cssv('--grid')||'#eee';
+  const F=cssv('--ink-faint')||'#999', S=cssv('--surface')||'#fff';
+  const MONO="'SF Mono',ui-monospace,Consolas,monospace";
+
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="กราฟแนวโน้มยอดขาย">`;
+  s+=`<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="${A}" stop-opacity=".22"/>
+    <stop offset="100%" stop-color="${A}" stop-opacity=".01"/></linearGradient></defs>`;
+  for(let k=0;k<=3;k++){const v=top*k/3,y=Y(v);
+    s+=`<line x1="${P.l}" y1="${y.toFixed(1)}" x2="${W-P.r}" y2="${y.toFixed(1)}" stroke="${G}" stroke-width="1"/>`;
+    s+=`<text x="${P.l-7}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-family="${MONO}" font-size="${EZ?14:(narrow?9:10)}" fill="${F}">${kmb(v)}</text>`;}
+
+  // แถบช่วงปกติ (Natural Process Limits) — อยู่ในแถบ = ความแกว่งปกติ ไม่ต้องตกใจ
+  if(opt.band){
+    const bu=opt.band.up, bl=opt.band.lo, seg=[];
+    for(let i=0;i<n;i++) if(bu[i]!=null&&bl[i]!=null) seg.push(i);
+    if(seg.length>1){
+      let p=`M ${X(seg[0]).toFixed(1)} ${Y(Math.min(bu[seg[0]],top)).toFixed(1)}`;
+      seg.forEach(i=>p+=` L ${X(i).toFixed(1)} ${Y(Math.min(bu[i],top)).toFixed(1)}`);
+      for(let k=seg.length-1;k>=0;k--){const i=seg[k];p+=` L ${X(i).toFixed(1)} ${Y(Math.max(bl[i],0)).toFixed(1)}`;}
+      s+=`<path d="${p} Z" fill="${F}" opacity=".12"/>`;
+    }
+  }
+
+  const pts=[]; items.forEach((d,i)=>{ if(d.v!==null) pts.push([X(i),Y(d.v)]); });
+  if(pts.length>1){
+    let a=`M ${pts[0][0].toFixed(1)} ${(P.t+ih).toFixed(1)} `;
+    pts.forEach(p=>a+=`L ${p[0].toFixed(1)} ${p[1].toFixed(1)} `);
+    a+=`L ${pts[pts.length-1][0].toFixed(1)} ${(P.t+ih).toFixed(1)} Z`;
+    s+=`<path d="${a}" fill="url(#g1)"/>`;
+    s+=`<path d="${pts.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')}" fill="none" stroke="${A}" stroke-width="${opt.overlay?(EZ?1.6:1.2):(EZ?3:2)}"${opt.overlay?' opacity=".45"':''} stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  // เส้นแนวโน้ม: ใช้ความชันที่ส่งเข้ามา (คำนวณจากบล็อก 7 วันเต็ม) เพื่อให้ทุกช่วงเวลาชี้ทิศเดียวกัน
+  const fit=items.map((d,i)=>[i,d.v,d.partial]).filter(p=>p[1]!==null&&!p[2]);
+  if(fit.length>=2){
+    let sl;
+    if(opt.slopePerBucket!==undefined && opt.slopePerBucket!==null){
+      sl=opt.slopePerBucket;
+    }else{
+      const mx=fit.reduce((a,p)=>a+p[0],0)/fit.length, my=fit.reduce((a,p)=>a+p[1],0)/fit.length;
+      let nu=0,de=0; fit.forEach(p=>{nu+=(p[0]-mx)*(p[1]-my);de+=(p[0]-mx)**2;});
+      sl=de?nu/de:null;
+    }
+    if(sl!==null&&sl!==undefined){
+      const ci=fit.reduce((a,p)=>a+p[0],0)/fit.length;      // จุดกึ่งกลางแกน x
+      const cv=fit.reduce((a,p)=>a+p[1],0)/fit.length;      // ค่าเฉลี่ยของช่วงที่แสดง
+      const iA=fit[0][0], iB=fit[fit.length-1][0];
+      const c0=Math.min(Math.max(cv+sl*(iA-ci),0),top), c1=Math.min(Math.max(cv+sl*(iB-ci),0),top);
+      const col=sl>=0?(cssv('--up')||'#0F766E'):(cssv('--down')||'#C2410C');
+      s+=`<line x1="${X(iA).toFixed(1)}" y1="${Y(c0).toFixed(1)}" x2="${X(iB).toFixed(1)}" y2="${Y(c1).toFixed(1)}" stroke="${col}" stroke-width="1.6" stroke-dasharray="5 4" opacity=".85"/>`;
+      opt.onTrend && opt.onTrend(sl);
+    }
+  }
+  // เส้นค่าเฉลี่ยเคลื่อนที่ 7 วัน — ตัดผลของวันในสัปดาห์ออก จึงเห็นทิศทางจริง
+  if(opt.overlay){
+    const op=[]; opt.overlay.forEach((v,i)=>{ if(v!=null) op.push([X(i),Y(v)]); });
+    if(op.length>1)
+      s+=`<path d="${op.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ')}" fill="none" stroke="${A}" stroke-width="${EZ?3.6:2.4}" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  // วันที่หลุดช่วงปกติ = สัญญาณจริงที่ควรไปหาสาเหตุ
+  if(opt.flags){
+    const dn=cssv('--down')||'#C2410C';
+    opt.flags.forEach((f,i)=>{ if(!f||items[i].v==null) return;
+      s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(items[i].v).toFixed(1)}" r="4.5" fill="none" stroke="${dn}" stroke-width="2"/>`; });
+  }
+  if(n<=12) pts.forEach(p=>s+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${A}"/>`);
+  const ev=Math.ceil(n/(narrow?4:8));
+  items.forEach((d,i)=>{ if(i%ev!==0&&i!==n-1)return;
+    s+=`<text x="${X(i).toFixed(1)}" y="${H-8}" text-anchor="middle" font-family="${MONO}" font-size="${EZ?13:(narrow?9:10)}" fill="${F}">${d.label}</text>`;});
+  s+=`<circle id="gdot" r="4.5" fill="${A}" stroke="${S}" stroke-width="2" opacity="0"/>`;
+  const bw=iw/Math.max(1,n-1);
+  items.forEach((d,i)=>s+=`<rect class="bd" data-i="${i}" x="${(X(i)-bw/2).toFixed(1)}" y="${P.t}" width="${bw.toFixed(1)}" height="${ih}" fill="transparent"/>`);
+  s+=`</svg>`;
+
+  host.querySelectorAll('svg').forEach(e=>e.remove());
+  host.insertAdjacentHTML('afterbegin',s);
+  const svg=host.querySelector('svg'), dot=svg.querySelector('#gdot');
+  const show=i=>{const d=items[i]; if(d.v===null)return;
+    const sc=(host.clientWidth||W)/W;
+    dot.setAttribute('cx',X(i));dot.setAttribute('cy',Y(d.v));dot.setAttribute('opacity','1');
+    tip.innerHTML=`<div class="t">${d.full||d.label}</div><div class="v">${nf(d.v)} ฿${d.days>1?'/วัน':''}</div>`;
+    tip.style.opacity='1';
+    const tw=tip.offsetWidth,hw=host.clientWidth;
+    tip.style.left=Math.max(2,Math.min(X(i)*sc-tw/2,hw-tw-2))+'px';
+    tip.style.top=Math.max(0,Y(d.v)*sc-tip.offsetHeight-10)+'px';};
+  svg.querySelectorAll('.bd').forEach(r=>{
+    const i=+r.dataset.i;
+    r.addEventListener('mouseenter',()=>show(i));
+    r.addEventListener('touchstart',e=>{show(i);},{passive:true});
+  });
+  host.addEventListener('mouseleave',()=>{tip.style.opacity='0';dot.setAttribute('opacity','0');});
+}
+
+/* ============ state ============ */
+let DATA=null, ST={tf:1, rank:'top', date:null};
+
+/* ============ load ============ */
+Promise.resolve(inlineCSV())
+  .then(pre => pre !== null ? pre
+    : fetch(CSV_URL+'?v='+Date.now())
+        .then(r=>{ if(!r.ok) throw new Error(r.status===404
+            ? 'ไม่พบไฟล์ data/sales.csv บนเซิร์ฟเวอร์ — ตรวจว่าอัปโหลดโฟลเดอร์ data ขึ้นไปแล้วหรือยัง'
+            : 'เซิร์ฟเวอร์ตอบกลับผิดพลาด (รหัส '+r.status+')'); return r.text(); }))
+  .then(txt=>{ build(txt); })
+  .catch(e=>{
+    document.getElementById('loading').classList.add('hide');
+    const el=document.getElementById('error'); el.classList.remove('hide');
+    // บอกสาเหตุที่เจาะจงก่อน แล้วค่อยตามด้วยรายการตรวจสอบทั่วไป
+    el.innerHTML=`<b style="font-size:20px">เปิดข้อมูลไม่สำเร็จ</b><br><br>
+      <span style="display:inline-block;background:#FFF1E8;border:2px solid var(--down);border-radius:10px;
+        padding:12px 14px;color:#7A2606;text-align:left;max-width:560px">${esc(e.message)}</span><br><br>
+      <span style="font-size:15px;color:var(--ink-dim)">ถ้ายังไม่หาย ให้ตรวจว่ามีไฟล์ <code>data/sales.csv</code>
+      และหัวตารางมีครบ 6 คอลัมน์: <code>วันที่ · ภาค · ผู้ดูแล · รหัสร้าน · ชื่อสาขา · ยอดขาย</code></span>`;
+  });
+
+function build(txt){
+  const rows=parseCSV(txt);
+  if(rows.length<2) throw new Error('ไฟล์ว่าง');
+  const ix=mapHeader(rows[0]);
+  if(ix.date<0||ix.name<0||ix.sales<0) throw new Error('หัวตารางไม่ครบ');
+
+  // วันที่ต้องเป็น YYYY-MM-DD และเป็นวันที่มีอยู่จริง ไม่งั้นฟังก์ชันที่อิงเวลาจะใช้ไม่ได้ทั้งหมด
+  const isISO=s=>{
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    const p=s.split('-').map(Number);
+    const dt=new Date(Date.UTC(p[0],p[1]-1,p[2]));
+    return dt.getUTCFullYear()===p[0]&&dt.getUTCMonth()===p[1]-1&&dt.getUTCDate()===p[2];
+  };
+  const recs=[]; let badDate=0, badSample='';
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i]; const v=num(r[ix.sales]);
+    const d=(r[ix.date]||'').trim();
+    const nm=(r[ix.name]||'').trim();
+    if(d&&!isISO(d)){ if(!badDate) badSample=d; badDate++; continue; }
+    if(!d||!nm||v===null) continue;
+    recs.push({d, rg:(ix.region>=0?r[ix.region]:'')?.trim()||'ไม่ระบุ',
+      sv:(ix.sup>=0?r[ix.sup]:'')?.trim()||'', code:(ix.code>=0?r[ix.code]:'')?.trim()||'', n:nm, v});
+  }
+  if(!recs.length){
+    throw new Error(badDate
+      ? `คอลัมน์วันที่ต้องเป็นรูปแบบ ปี-เดือน-วัน เช่น 2026-08-01 (พบ "${badSample}" ซึ่งใช้ไม่ได้ ${badDate} แถว) — ใช้ปี ค.ศ. เท่านั้น ไม่ใช่ พ.ศ.`
+      : 'ไม่พบข้อมูลที่อ่านได้');
+  }
+
+  const dates=[...new Set(recs.map(r=>r.d))].sort();
+  const byDate={}; dates.forEach(d=>byDate[d]=[]);
+  recs.forEach(r=>byDate[r.d].push(r));
+
+  // daily national totals
+  const daily=dates.map(d=>byDate[d].reduce((a,r)=>a+r.v,0));
+
+  // ประวัติรายสาขาข้ามวัน (ใช้วาด sparkline ในรายการอันดับ)
+  const hist={};
+  dates.forEach((d,di)=>{
+    const agg={};
+    byDate[d].forEach(r=>{
+      const k=r.code?r.code.replace(/-\d+$/,''):r.n;
+      agg[k]=(agg[k]||0)+r.v;
+    });
+    Object.keys(agg).forEach(k=>{
+      (hist[k]=hist[k]||new Array(dates.length).fill(null))[di]=agg[k];
+    });
+  });
+
+  DATA={recs,dates,byDate,daily,hist,badDate,badSample};
+  ST.date=dates[dates.length-1];
+
+  document.getElementById('loading').classList.add('hide');
+  document.getElementById('app').classList.remove('hide');
+  render();
+}
+
+/* ============ render ============ */
+function bucketize(vals,size,dates){
+  const out=[];
+  for(let i=0;i<vals.length;i+=size){
+    const ch=vals.slice(i,i+size), e=Math.min(i+size,vals.length)-1;
+    const ok=ch.filter(x=>x!==null&&x!==undefined);
+    out.push({v:ok.length?ok.reduce((a,b)=>a+b,0)/ok.length:null, days:ch.length,
+      partial:ch.length<size,
+      label:size===1||e===i?fmtDate(dates[i],true):fmtDate(dates[i],true)+'–'+fmtDate(dates[e],true),
+      full:size===1||e===i?fmtDate(dates[i]):fmtDate(dates[i])+' ถึง '+fmtDate(dates[e])});
+  }
+  return out;
+}
+
+function render(){
+  const {dates,byDate,daily}=DATA;
+  const multi=dates.length>1;
+
+  // ---- period picker + header ----
+  const sel=document.getElementById('selDate');
+  sel.innerHTML=dates.map(d=>`<option value="${esc(d)}">${esc(fmtDate(d))} (${TH_DOW[new Date(d+'T00:00:00').getDay()]||'?'})</option>`).join('');
+  sel.value=ST.date;
+  sel.onchange=()=>{ST.date=sel.value;renderDay();};
+  document.getElementById('pickCard').classList.toggle('hide',!multi);
+
+  // ---- trend ----
+  const tc=document.getElementById('trendCard');
+  tc.classList.toggle('hide',!multi);
+  if(multi) renderTrend();
+
+  renderDay();
+  document.getElementById('foot').innerHTML=
+    `ข้อมูล ${dates.length} วัน · ${fmtDate(dates[0])} – ${fmtDate(dates[dates.length-1])}<br>อัปเดตไฟล์ data/sales.csv เพื่อดูข้อมูลใหม่`
+    + (DATA.badDate? `<br><span style="color:var(--down)">ข้ามไป ${DATA.badDate} แถวที่วันที่ผิดรูปแบบ (เช่น "${esc(DATA.badSample)}") — ต้องเป็น 2026-08-01</span>`:'');
+}
+
+// ระยะห่างระหว่างวันที่ในไฟล์: 1 = ป้อนรายวัน, 7 = ป้อนสัปดาห์ละตัวเลข
+function gapDays(){
+  const d=DATA.dates;
+  if(d.length<2) return 1;
+  const gaps=[];
+  for(let i=1;i<d.length;i++)
+    gaps.push(Math.round((new Date(d[i])-new Date(d[i-1]))/86400000));
+  return median(gaps)||1;
+}
+
+// ค่าเฉลี่ยเคลื่อนที่ 7 วัน (ตัดผลของวันในสัปดาห์)
+function rolling(vals,w){
+  return vals.map((_,i)=>{
+    if(i<w-1) return null;
+    const c=vals.slice(i-w+1,i+1).filter(v=>v!=null);
+    return c.length===w? c.reduce((a,b)=>a+b,0)/w : null;
+  });
+}
+// ช่วงความแกว่งปกติแบบแยกตามวันในสัปดาห์ (seasonal XmR ของ Wheeler)
+// ใช้ผลต่างกับวันเดียวกันของสัปดาห์ก่อน จึงไม่ถูกวันอาทิตย์ทำให้เพี้ยน
+function processLimits(vals,dows){
+  const mr=[];
+  for(let i=7;i<vals.length;i++)
+    if(vals[i]!=null&&vals[i-7]!=null) mr.push(Math.abs(vals[i]-vals[i-7]));
+  if(mr.length<3) return null;
+  const mrbar=mr.reduce((a,b)=>a+b,0)/mr.length, half=2.66*mrbar;
+  const sum={},cnt={};
+  vals.forEach((v,i)=>{ if(v==null)return; const d=dows[i];
+    sum[d]=(sum[d]||0)+v; cnt[d]=(cnt[d]||0)+1; });
+  const up=[],lo=[],flag=[];
+  vals.forEach((v,i)=>{
+    const d=dows[i], c=cnt[d]?sum[d]/cnt[d]:null;
+    if(c==null||v==null){ up.push(null);lo.push(null);flag.push(false);return; }
+    up.push(c+half); lo.push(Math.max(0,c-half));
+    flag.push(v>c+half||v<c-half);
+  });
+  return {up,lo,flag,half,nFlag:flag.filter(Boolean).length};
+}
+
+function renderTrend(){
+  const {dates,daily}=DATA;
+  const gap=gapDays(), seg=document.getElementById('segTF');
+  // ปุ่มช่วงเวลาใช้ได้เฉพาะตอนข้อมูลเป็นรายวัน และต้องเหลืออย่างน้อย 3 จุดถึงจะอ่านกราฟรู้เรื่อง
+  const usable=[1,3,7].filter(s=>gap===1 && Math.ceil(dates.length/s)>=3);
+  seg.classList.toggle('hide',usable.length<2);
+  if(!usable.includes(ST.tf)) ST.tf=usable.length?usable[0]:1;
+
+  // ความชันต่อ 1 วัน คำนวณครั้งเดียวจากบล็อก 7 วันเต็ม เพื่อตัดผลของวันในสัปดาห์
+  // (ถ้าไม่ตัด วันอาทิตย์ที่ยอดต่ำจะทำให้ปุ่ม 1 วัน กับ 1 สัปดาห์ ชี้คนละทิศ)
+  let perDay=null, neutral=false;
+  if(gap===1 && dates.length>=14){
+    const blocks=bucketize(daily,7,dates).filter(x=>!x.partial&&x.v!==null).map(x=>x.v);
+    if(blocks.length>=2){
+      const mi=(blocks.length-1)/2, mv=blocks.reduce((a,b)=>a+b,0)/blocks.length;
+      let nu=0,de=0; blocks.forEach((v,i)=>{nu+=(i-mi)*(v-mv);de+=(i-mi)**2;});
+      if(de){ perDay=(nu/de)/7; neutral=true; }
+    }
+  }
+
+  const b=bucketize(daily,ST.tf,dates);
+  let slope=null;
+  // มุมมองรายวันเท่านั้นที่ใส่เส้นเฉลี่ย 7 วันและแถบช่วงปกติ (มุมมองที่รวมช่วงแล้วเรียบอยู่ในตัว)
+  const dowArr=dates.map(d=>new Date(d+'T00:00:00').getDay());
+  const showStat = gap===1 && ST.tf===1 && dates.length>=14;
+  const roll = (gap===1 && ST.tf===1 && dates.length>=7) ? rolling(daily,7) : null;
+  const lim  = showStat ? processLimits(daily,dowArr) : null;
+
+  drawLine(document.getElementById('hostAll'),document.getElementById('tipAll'),b,
+    {onTrend:s=>slope=s, slopePerBucket: perDay===null?null:perDay*ST.tf,
+     overlay: roll, band: lim?{up:lim.up,lo:lim.lo}:null, flags: lim?lim.flag:null});
+  if(perDay===null && slope!==null) perDay=slope/ST.tf;
+
+  const cap=document.getElementById('capAll');
+  const unit=gap===1?'฿/วัน':`฿ ต่อ ${gap} วัน`;
+  if(perDay===null){
+    cap.textContent='ต้องมีข้อมูลอย่างน้อย 2 ช่วงจึงจะคำนวณแนวโน้มได้';
+  }else{
+    const up=perDay>=0;
+    let note=neutral
+      ? ' · คำนวณจากบล็อก 7 วันเต็ม จึงไม่ถูกบิดด้วยวันในสัปดาห์'
+      : ' · เส้นประคือทิศทางรวม';
+    if(gap>1) note=` · แต่ละจุดคือข้อมูล 1 ครั้งที่ป้อน (ห่างกัน ~${gap} วัน) — ถ้าอยากใช้ปุ่มเลือกช่วง 1/3/7 วัน ให้ป้อนข้อมูลแยกเป็นรายวัน`;
+    let stat='';
+    if(roll) stat+='<br><b>เส้นหนา</b> = ค่าเฉลี่ย 7 วัน ใช้ดูทิศทางจริง (เส้นจางคือยอดดิบรายวันที่ขึ้นลงตามวันในสัปดาห์)';
+    if(lim) stat+=`<br><b>แถบเทา</b> = ช่วงความแกว่งปกติของวันนั้นๆ อยู่ในแถบแปลว่าไม่มีอะไรผิดปกติ ไม่ต้องตามหาสาเหตุ · ` +
+      (lim.nFlag? `<b style="color:var(--down)">มี ${lim.nFlag} วันหลุดช่วง (วงกลมสีส้ม)</b> คือวันที่ควรไปหาสาเหตุจริง`
+                : `<b style="color:var(--up)">ช่วงนี้ไม่มีวันไหนหลุดช่วงปกติ</b> ทุกการขึ้นลงคือความแกว่งธรรมดา`);
+    cap.innerHTML=`<b style="color:${up?'var(--up)':'var(--down)'}">แนวโน้ม: ${up?'▲ เพิ่มขึ้น':'▼ ลดลง'} ~${kmb(Math.abs(perDay))} ${unit}</b>${note}${stat}`;
+  }
+  document.querySelectorAll('#segTF button').forEach(x=>{
+    const s=+x.dataset.s;
+    x.classList.toggle('hide',!usable.includes(s));
+    x.classList.toggle('on',s===ST.tf);
+    x.onclick=()=>{ST.tf=s;renderTrend();};
+  });
+}
+
+function renderDay(){
+  const rows=DATA.byDate[ST.date]||[];
+  // group sub-codes (-01/-02) into their base store
+  const base={};
+  rows.forEach(r=>{
+    const k=r.code?r.code.replace(/-\d+$/,''):r.n;
+    const g=base[k]||(base[k]={key:k,n:null,rg:r.rg,sv:r.sv,v:0,sub:0});
+    if(r.code&&/-\d+$/.test(r.code)) g.sub+=r.v; else { g.v+=r.v; g.n=r.n; }
+    if(!g.n) g.n=r.n;
+    g.tot=g.v+g.sub;
+  });
+  const all=Object.values(base).map(g=>({...g,tot:g.v+g.sub}));
+  // นับสาขาที่ "มีความเคลื่อนไหว" ซึ่งรวมยอดติดลบ (คืนสินค้า/ปรับปรุงบัญชี) ด้วย
+  // ถ้ากรองแค่ tot>0 ยอดติดลบจะหายไปจากยอดรวม ทำให้ตัวเลขไม่ตรงบัญชี
+  const act=all.filter(s=>s.tot!==0).sort((a,b)=>b.tot-a.tot);
+  const zero=all.filter(s=>s.tot===0);
+  const total=act.reduce((a,s)=>a+s.tot,0);
+
+  // ถ้าวันนั้นไม่มีสาขาไหนมีความเคลื่อนไหวเลย ให้บอกตรงๆ ไม่ใช่ปล่อยให้พังแล้วโทษไฟล์
+  if(!act.length){
+    document.getElementById('sub').textContent=`${fmtDate(ST.date)}`;
+    document.getElementById('tot').textContent='0';
+    document.getElementById('totc').textContent='บาท · ไม่มีสาขาที่มียอดขาย';
+    document.getElementById('headline').innerHTML=
+      `<div class="k">ไม่มีข้อมูลยอดขาย</div><div class="m">วันที่ <b>${esc(fmtDate(ST.date))}</b> ทุกสาขามียอดเป็นศูนย์ — `+
+      `อาจเป็นวันหยุด ร้านปิดทั้งหมด หรือข้อมูลยังไม่เข้าระบบ ลองเลือกวันอื่นจากช่องด้านบน</div>`;
+    ['kpis','rank','regions','ins'].forEach(id=>{const e=document.getElementById(id); if(e) e.innerHTML='';});
+    return;
+  }
+
+  // region stats
+  const rg={};
+  act.forEach(s=>{(rg[s.rg]=rg[s.rg]||[]).push(s.tot);});
+  const rmed={}; Object.keys(rg).forEach(k=>rmed[k]=median(rg[k]));
+  act.forEach(s=>{ s.rmed=rmed[s.rg]||0; s.peer=s.rmed?s.tot/s.rmed:1; });
+  const regions=Object.keys(rg).map(k=>({name:k,tot:rg[k].reduce((a,b)=>a+b,0),n:rg[k].length,
+    mean:rg[k].reduce((a,b)=>a+b,0)/rg[k].length,med:rmed[k]})).sort((a,b)=>b.tot-a.tot);
+
+  const vals=act.map(s=>s.tot);
+  const med=median(vals);
+
+  // header
+  document.getElementById('sub').textContent=`${fmtDate(ST.date)} · ${TH_DOW[new Date(ST.date+'T00:00:00').getDay()]}`;
+  document.getElementById('tot').textContent=kmb(total);
+  document.getElementById('totc').textContent='บาท · '+act.length+' สาขา';
+
+  // kpi
+  const under=act.filter(s=>s.peer<=0.6).length, over=act.filter(s=>s.peer>=1.6).length;
+  // เทียบ "วันเดียวกันของสัปดาห์ก่อน" ไม่ใช่ "เมื่อวาน"
+  // เทียบเมื่อวานจะได้ +160% ทุกวันจันทร์เพราะวันอาทิตย์ยอดต่ำเป็นปกติ ซึ่งไม่ใช่สัญญาณอะไรเลย
+  let wowChg=null, wowLbl='ช่วงยอดขาย';
+  const di=DATA.dates.indexOf(ST.date);
+  // หาแถวที่เป็นวันเดียวกันของสัปดาห์ก่อนพอดี (ใช้ได้ทั้งข้อมูลรายวันและรายสัปดาห์)
+  // ต้องคำนวณด้วย Date.UTC เท่านั้น — ถ้าใช้ new Date('...T00:00:00') จะถูกตีความเป็นเวลาท้องถิ่น
+  // แล้ว toISOString() แปลงกลับเป็น UTC ทำให้ร่นไป 1 วันในไทย (UTC+7) กลายเป็นเทียบจันทร์กับอาทิตย์
+  if(di>0){
+    const p=ST.date.split('-').map(Number);
+    const key=new Date(Date.UTC(p[0],p[1]-1,p[2]-7)).toISOString().slice(0,10);
+    const pi=DATA.dates.indexOf(key);
+    if(pi>=0 && DATA.daily[pi]>0){
+      wowChg=(DATA.daily[di]-DATA.daily[pi])/DATA.daily[pi]*100;
+      wowLbl='เทียบวันเดียวกันสัปดาห์ก่อน';
+    }
+  }
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi"><div class="l">เฉลี่ยต่อสาขา</div><div class="v">${kmb(total/act.length)}</div>
+      <div class="d">ค่ากลาง ${kmb(med)} ฿</div></div>
+    <div class="kpi"><div class="l">${wowLbl}</div>
+      <div class="v" style="${wowChg===null?'':'color:'+(wowChg>=0?'var(--up)':'var(--down)')}">${wowChg===null?kmb(Math.min(...vals))+'–'+kmb(Math.max(...vals)):(wowChg>=0?'▲ ':'▼ ')+(wowChg>=0?'เพิ่ม ':'ลด ')+Math.abs(wowChg).toFixed(1)+'%'}</div>
+      <div class="d">${wowChg===null?'ต่ำสุด–สูงสุด':'ตัดผลของวันในสัปดาห์แล้ว'}</div></div>
+    <div class="kpi"><div class="l">ต่ำกว่าค่ากลางภาคมาก</div><div class="v" style="color:var(--down)">${under}</div>
+      <div class="d">ทำได้ ≤60% ของเพื่อนร่วมภาค</div></div>
+    <div class="kpi"><div class="l">สูงกว่าค่ากลางภาคมาก</div><div class="v" style="color:var(--up)">${over}</div>
+      <div class="d">ทำได้ ≥160% ของเพื่อนร่วมภาค</div></div>`;
+
+  // แถบสรุป 5 วินาที: สารเดียวที่สำคัญที่สุด อ่านจบโดยไม่ต้องเลื่อนจอ
+  (function headline(){
+    const el=document.getElementById('headline');
+    const multi=DATA.dates.length>1;
+    let k='สรุปวันนี้', m;
+    if(multi && wowChg!==null){
+      const up=wowChg>=0;
+      m=`ยอดขายรวม <b>${nf(total)} ฿</b> ${up?'เพิ่มขึ้น':'ลดลง'} <b style="color:${up?'var(--up)':'var(--down)'}">${up?'▲':'▼'} ${Math.abs(wowChg).toFixed(1)}%</b> เทียบวันเดียวกันสัปดาห์ก่อน · มี <b>${under}</b> สาขาที่ตามหลังเพื่อนร่วมภาคมาก`;
+    }else if(multi && di>0){
+      m=`ยอดขายรวม <b>${nf(total)} ฿</b> จาก <b>${act.length}</b> สาขา · ยังเทียบสัปดาห์ต่อสัปดาห์ไม่ได้จนกว่าจะมีข้อมูลครบ 8 วัน · มี <b style="color:var(--down)">${under}</b> สาขาที่ตามหลังเพื่อนร่วมภาคมาก`;
+    }else{
+      const sh=(act.slice(0,10).reduce((a,s)=>a+s.tot,0)/total*100).toFixed(0);
+      m=`ยอดขายรวม <b>${nf(total)} ฿</b> จาก <b>${act.length}</b> สาขา · 10 สาขาแรกทำได้ <b>${sh}%</b> ของทั้งหมด · มี <b style="color:var(--down)">${under}</b> สาขาที่ตามหลังเพื่อนร่วมภาคมาก`;
+      k='สรุปวันเดียว';
+    }
+    el.innerHTML=`<div class="k">${k}</div><div class="m">${m}</div>`;
+  })();
+
+  // rank
+  const N=Math.min(5,act.length);  // แสดง 5 อันดับพอ ลดภาระการอ่าน
+  // แถบแบบ bullet graph: ความยาว = ยอดสาขา, ขีดตั้ง = ค่ากลางของภาค
+  // ใช้ "ตำแหน่งบนแกนร่วม" ซึ่งงานวิจัย Cleveland & McGill จัดว่าอ่านแม่นที่สุด
+  function sparkSVG(key){
+    const h=DATA.hist&&DATA.hist[key];
+    if(!h) return '';
+    const pts=h.map((v,i)=>[i,v]).filter(p=>p[1]!==null);
+    if(pts.length<3) return '';
+    const vs=pts.map(p=>p[1]), mn=Math.min(...vs), mx=Math.max(...vs);
+    const W=96,H=28,rng=(mx-mn)||1, n=h.length-1||1;
+    const X=i=>(i/n)*(W-3)+1.5, Y=v=>H-2-((v-mn)/rng)*(H-5);
+    const dd=pts.map((p,i)=>`${i?'L':'M'} ${X(p[0]).toFixed(1)} ${Y(p[1]).toFixed(1)}`).join(' ');
+    const last=pts[pts.length-1];
+    const col=cssv('--ink-faint')||'#9AA2AC', ac=cssv('--accent')||'#9A6B2F';
+    return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+      <path d="${dd}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${X(last[0]).toFixed(1)}" cy="${Y(last[1]).toFixed(1)}" r="3.2" fill="${ac}"/></svg>`;
+  }
+
+  function rowHTML(no,s,mx,col){
+    const pc=s.peer.toFixed(2)+'x';
+    const pcol=s.peer>=1.15?'var(--up)':s.peer<=0.85?'var(--down)':'var(--ink-faint)';
+    const refPct=Math.min(100,(s.rmed||0)/mx*100);
+    const key=s.key||s.n;
+    return `<div class="rw"><div class="no">${no}</div><div class="mid">
+      <div class="nm">${esc(s.n)}</div><div class="rg">${esc(s.rg)}${s.sv?' · '+esc(s.sv):''}</div>
+      <div class="trk"><i style="width:${Math.max(3,s.tot/mx*100)}%;background:${col}"></i>
+        <u style="left:calc(${refPct}% - 1px)" title="ค่ากลางของภาค"></u></div>
+      ${sparkSVG(key)}</div>
+      <div class="va">${kmb(s.tot)}</div><div class="pc" style="color:${pcol}">${pc}</div></div>`;
+  }
+  function drawRank(){
+    const top=ST.rank==='top';
+    const list=top?act.slice(0,N):act.slice(-N).reverse();
+    const mx=top?act[0].tot:list[0].tot;
+    document.getElementById('rank').innerHTML=list.map((s,i)=>
+      rowHTML(top?i+1:act.length-N+1+i,s,mx,top?'var(--up)':'var(--down)')).join('');
+  }
+  document.querySelectorAll('#segRank button').forEach(x=>{
+    x.classList.toggle('on',x.dataset.r===ST.rank);
+    x.onclick=()=>{ST.rank=x.dataset.r;
+      document.querySelectorAll('#segRank button').forEach(y=>y.classList.toggle('on',y.dataset.r===ST.rank));
+      drawRank();};
+  });
+  drawRank();
+
+
+  // regions
+  const regEl=document.getElementById('regions');
+  const rmx=Math.max(...regions.map(r=>r.tot));
+  if(regEl) regEl.innerHTML=regions.map(r=>
+    `<div class="rw"><div class="mid"><div class="nm">${esc(r.name)} <span style="color:var(--ink-faint);font-size:11px">(${r.n})</span></div>
+     <div class="trk"><i style="width:${r.tot/rmx*100}%;background:var(--accent)"></i></div></div>
+     <div class="va">${kmb(r.tot)}</div><div class="pc" style="color:var(--ink-faint)">${kmb(r.mean)}</div></div>`).join('');
+
+  renderInsights(act,regions,zero,total,med,under,over);
+}
+
+function renderInsights(act,regions,zero,total,med,under,over){
+  const multi=DATA.dates.length>1;
+  const no1=act[0], no2=act[1];
+  const rs=[...regions].sort((a,b)=>b.mean-a.mean);
+  const hi=rs[0], lo=rs[rs.length-1];
+  const worst=[...act].sort((a,b)=>a.peer-b.peer)[0];
+  let cum=0,half=0; for(let i=0;i<act.length;i++){cum+=act[i].tot; if(cum>=total/2){half=i+1;break;}}
+  const items=[];
+
+  if(multi){
+    const di=DATA.dates.indexOf(ST.date);
+    const d7=DATA.daily.slice(Math.max(0,di-6),di+1);
+    const avg7=d7.reduce((a,b)=>a+b,0)/d7.length;
+    items.push({t:'เทียบค่าเฉลี่ย',c:'',x:`ยอดวันนี้ <b>${nf(total)} ฿</b> เทียบค่าเฉลี่ย ${d7.length} วันล่าสุด (${nf(avg7)} ฿) คิดเป็น <b>${(total/avg7*100).toFixed(0)}%</b> — ใช้ดูว่าวันนี้เป็นวันปกติหรือผิดปกติก่อนสรุปอะไร`});
+  }else{
+    items.push({t:'ข้อควรระวัง',c:'r',x:`ตอนนี้มีข้อมูล<b>วันเดียว</b> จึงยังคำนวณแนวโน้มหรือ % เปลี่ยนแปลงไม่ได้ พอป้อนข้อมูลสัปดาห์ถัดไป กราฟแนวโน้มและปุ่มเลือกช่วงเวลาจะปรากฏขึ้นเองอัตโนมัติ`});
+  }
+
+  items.push({t:'อ่านให้ถูก',c:'r',x:`อันดับ 1 คือ <b>${esc(no1.n)} (${nf(no1.tot)} ฿)</b> สูงกว่าค่ากลางของภาคตัวเอง ${no1.peer.toFixed(2)} เท่า${no2?` และสูงกว่าอันดับ 2 อยู่ ${((no1.tot/no2.tot-1)*100).toFixed(0)}%`:''} — ยอดวันเดียวที่สูงผิดปกติมักมาจากลูกค้ารายใหญ่หรือโปรโมชัน ควรดูหลายวันก่อนสรุปว่าเป็นสาขาต้นแบบ`});
+
+  items.push({t:'เทียบอย่างเป็นธรรม',c:'g',x:`วิธีเทียบที่ยุติธรรมที่สุดคือเทียบกับ<b>ค่ากลางของภาคตัวเอง</b> เพราะตัดผลของขนาดตลาดออก — วันนี้มี <b>${under} สาขาทำได้ไม่ถึง 60%</b> และ <b>${over} สาขาเกิน 160%</b> ของค่ากลางในภาคเดียวกัน สองกลุ่มนี้คือรายชื่อที่ควรคุยด้วยก่อน`});
+
+  items.push({t:'ความเหลื่อมล้ำ',c:'',x:`<b>${esc(hi.name)}</b> ทำได้เฉลี่ย ${nf(hi.mean)} ฿/สาขา สูงกว่า <b>${esc(lo.name)}</b> (${nf(lo.mean)} ฿/สาขา) อยู่ ${((hi.mean/lo.mean-1)*100).toFixed(0)}% การตั้งเป้าเท่ากันทุกสาขาจึงไม่สะท้อนความจริงของแต่ละพื้นที่`});
+
+  items.push({t:'ฐานรายได้',c:'',x:`ต้องใช้ถึง <b>${half} สาขา (${(half/act.length*100).toFixed(0)}% ของทั้งหมด)</b> จึงจะได้ครึ่งหนึ่งของยอดวัน แปลว่ารายได้มาจากฐานสาขากลางๆ จำนวนมาก ไม่ได้พึ่งสาขาใหญ่ไม่กี่แห่ง — การยกระดับกลุ่มกลางทีละนิดให้ผลรวมมากกว่าทุ่มที่สาขาท็อป`});
+
+  if(zero.length) items.push({t:'ตรวจสอบ',c:'r',x:`มี <b>${zero.length} รหัสร้านที่ยอดเป็นศูนย์</b>วันนี้ (${zero.slice(0,3).map(z=>esc(z.n)).join(', ')}${zero.length>3?' และอื่นๆ':''}) ควรแยกให้ออกว่าเป็นร้านปิด ร้านใหม่ หรือข้อมูลไม่เข้าระบบ ไม่งั้นค่าเฉลี่ยจะต่ำกว่าความจริง`});
+
+  if(worst.peer<0.3) items.push({t:'ผิดปกติ',c:'r',x:`<b>${esc(worst.n)}</b> ทำได้เพียง ${nf(worst.tot)} ฿ (${worst.peer.toFixed(2)}x ของค่ากลางภาค) ตัวเลขระดับนี้มักไม่ใช่ปัญหายอดขาย แต่เป็นร้านเปิดไม่เต็มวันหรือข้อมูลตกหล่น ควรตรวจก่อนนำไปรวมค่าเฉลี่ย`});
+
+  document.getElementById('ins').innerHTML=items.map(i=>
+    `<div class="ins"><div class="tag ${i.c}">${i.t}</div><div class="tx">${i.x}</div></div>`).join('');
+}
+
+/* resize + theme */
+let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(DATA&&DATA.dates.length>1)renderTrend();},180);});
+/* ไม่มีโหมดมืด: ใช้พื้นขาวตัวอักษรดำอย่างเดียว ตามคำแนะนำสำหรับผู้อ่านสูงวัย */
+
+/* service worker (offline) */
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
